@@ -1,0 +1,1 @@
+{"name":"DealPulse","description":"Enterprise deal-risk agent analyzing sales call transcripts and CRM context with MEDDPICC extraction, reusable MCP skills, and verifiable specialist handoffs.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
