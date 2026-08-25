@@ -22,7 +22,7 @@ In enterprise B2B sales, over **$2.1 Trillion in pipeline value stalls or slips 
 DealPulse solves enterprise deal slippage by pairing a **deterministic orchestration supervisor** with a **decoupled MCP skill fabric**:
 
 - **Autonomous 8-Dimension MEDDPICC Extraction**: Continuously parses multi-speaker sales conversations (12–15 turns) and evaluates Metrics, Economic Buyer, Decision Criteria, Decision Process, Paper Process, Implicate Pain, Champion, and Competition.
-- **Decoupled MCP Skill Registry (`src/mcp/registry.ts`)**: 9 modular, reusable tools conforming to the Model Context Protocol standard (`crm.get_opportunity`, `transcript.analyze`, `meddpicc.extract`, `legal.generate_addendum`, `compliance.scan_gdpr`, `email.draft_executive_roi`, `crm.update_stage`, `handoff.route_specialist`, `handoff.to_human`).
+- **Decoupled MCP Skill Registry (`src/mcp/registry.ts`)**: 9 modular, reusable tools conforming to the Model Context Protocol standard (`crm.get_opportunity`, `transcript.analyze`, `meddpicc.extract`, `crm.update_stage`, `crm.add_next_steps`, `email.draft_ae_brief`, `ticket.create_legal_review`, `handoff.route_specialist`, `handoff.to_human`).
 - **Verifiable Handoffs OS & Incident Transfer**: Compiles tamper-evident handoff packets with SHA-256 checksums, verbatim transcript citations, prior decisions, and open questions to guarantee zero context loss between primary agents, specialists, and human executives.
 - **Immutable Action Ledger**: Every skill execution records correlation IDs, millisecond latencies, input payloads, and output schemas to maintain a strict audit trail.
 - **Deterministic Heuristics with Optional Gemini Enrichment**: 100% offline and deterministic by default for fast, reliable demo execution, with optional Gemini flash integration for dynamic natural language chat phrasing.
@@ -46,13 +46,13 @@ flowchart TD
     end
 
     subgraph MCPRegistry ["3. Decoupled MCP Skill Registry (9 Modular Skills)"]
-        C1["transcript.analyze (Audio Stress & Sentiment)"]
-        C2["crm.get_opportunity (Topology & Intel)"]
+        C1["crm.get_opportunity (Topology & Intel)"]
+        C2["transcript.analyze (Audio Stress & Sentiment)"]
         C3["meddpicc.extract (Confidence & Gaps)"]
-        C4["legal.generate_addendum (Clause 7.2 BaFin)"]
-        C5["compliance.scan_gdpr (EU Data Residency)"]
-        C6["email.draft_executive_roi (CFO Justification)"]
-        C7["crm.update_stage (Salesforce Sync)"]
+        C4["crm.update_stage (Salesforce Sync)"]
+        C5["crm.add_next_steps (Milestone Tasks)"]
+        C6["email.draft_ae_brief (Executive ROI)"]
+        C7["ticket.create_legal_review (BaFin SLA 24h)"]
         C8["handoff.route_specialist (Context Routing)"]
         C9["handoff.to_human (P1 Deal Desk Freeze)"]
     end
