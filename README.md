@@ -78,9 +78,11 @@ flowchart TD
 
 ---
 
-## 🎬 2-Minute Demo Script (Evaluator Walkthrough)
+## 🎬 Video Demo & Evaluator Walkthrough
 
-Follow these steps for a complete evaluation of DealPulse:
+📺 **Watch the Demo Walkthrough on YouTube**: [https://youtu.be/tvZSd66FFxY](https://youtu.be/tvZSd66FFxY)
+
+Follow these steps for a complete live evaluation of DealPulse:
 
 1. **Select Scenario B**: In the top navigation bar, ensure **"Scenario B: Late-stage legal block (High Risk - $350k)"** is selected.
 2. **Execute Autonomous Orchestration**: Click **"Run Demo"** in the header.
