@@ -343,21 +343,30 @@ export const PlatformRightPanel: React.FC<PlatformRightPanelProps> = ({
           <div className="space-y-4">
             {/* Frozen Notice Banner if Escalated */}
             {isFrozen && (
-              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-950/80 to-slate-900 border border-amber-500/60 shadow-lg flex items-start gap-2.5 animate-in fade-in duration-200">
-                <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-amber-300 uppercase tracking-wide">
-                      🛑 Autonomous Execution Frozen (Pending Human Sign-off)
-                    </span>
-                    <span className="text-[10px] font-mono text-amber-400 bg-amber-950 px-2 py-0.5 rounded border border-amber-500/30">
-                      LOCKED
-                    </span>
+              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-950/80 via-slate-900 to-rose-950/40 border border-amber-500/60 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in duration-200">
+                <div className="flex items-start gap-2.5">
+                  <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-amber-300 uppercase tracking-wide">
+                        🛑 Deal Escalated to Human Authority
+                      </span>
+                      <span className="text-[10px] font-mono text-amber-400 bg-amber-950 px-2 py-0.2 rounded border border-amber-500/30 font-bold">
+                        AUTO-ACTIONS FROZEN
+                      </span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed text-[11px]">
+                      {handoffPacket?.frozenReason || 'This deal has been escalated to human Deal Desk authority. All autonomous agent skill executions are suspended.'}
+                    </p>
                   </div>
-                  <p className="text-slate-300 leading-relaxed text-[11px]">
-                    {handoffPacket?.frozenReason || 'This deal has been escalated to human Deal Desk authority. All autonomous agent skill executions are suspended until executive review is complete.'}
-                  </p>
                 </div>
+                <button
+                  onClick={() => setActiveTab('ledger')}
+                  className="flex-shrink-0 px-2.5 py-1 rounded bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 text-[11px] font-semibold border border-teal-500/40 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Terminal className="w-3 h-3" />
+                  <span>View Action Ledger →</span>
+                </button>
               </div>
             )}
 
@@ -688,19 +697,29 @@ export const PlatformRightPanel: React.FC<PlatformRightPanelProps> = ({
               <div className="space-y-2.5">
                 {ledgerEntries.map((entry) => {
                   const isExpanded = expandedLedgerId === entry.id;
+                  const isEscalation = entry.skillName === 'handoff.to_human' || entry.category === 'HANDOFF';
+
                   return (
                     <div
                       key={entry.id}
-                      className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all text-xs"
+                      className={`p-3 rounded-xl border transition-all text-xs ${
+                        isEscalation
+                          ? 'bg-gradient-to-r from-rose-950/40 via-slate-900 to-amber-950/20 border-rose-500/50 ring-1 ring-rose-500/20'
+                          : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-bold text-teal-400">
+                            <span className={`font-mono font-bold ${isEscalation ? 'text-rose-300' : 'text-teal-400'}`}>
                               {entry.skillName}
                             </span>
-                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-mono uppercase">
-                              {entry.status}
+                            <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono uppercase ${
+                              isEscalation
+                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold'
+                                : 'bg-emerald-500/20 text-emerald-300'
+                            }`}>
+                              {isEscalation ? 'HUMAN ESCALATED' : entry.status}
                             </span>
                           </div>
                           <div className="text-[10px] font-mono text-slate-500">
@@ -710,12 +729,14 @@ export const PlatformRightPanel: React.FC<PlatformRightPanelProps> = ({
 
                         <div className="text-right font-mono text-[10px] text-slate-400">
                           <div>{entry.timestamp}</div>
-                          <div className="text-teal-400 font-semibold">{entry.executionTimeMs}ms</div>
+                          <div className={`${isEscalation ? 'text-rose-400' : 'text-teal-400'} font-semibold`}>{entry.executionTimeMs}ms</div>
                         </div>
                       </div>
 
                       {entry.notes && (
-                        <p className="text-[11px] text-slate-300 mb-2">{entry.notes}</p>
+                        <p className={`text-[11px] mb-2 leading-relaxed ${isEscalation ? 'text-rose-200 font-medium' : 'text-slate-300'}`}>
+                          {entry.notes}
+                        </p>
                       )}
 
                       {/* Expandable JSON Inputs/Outputs */}

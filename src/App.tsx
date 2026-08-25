@@ -20,6 +20,8 @@ import { TranscriptModal } from './components/TranscriptModal';
 import { ArchitectureDrawer } from './components/ArchitectureDrawer';
 import { ArtifactModal } from './components/ArtifactModal';
 
+import { runDeterministicAnalysis } from './engine/heuristicAnalyzer';
+
 export function App() {
   // Demo scenario state (default Scenario B as per requirements)
   const [currentScenario, setCurrentScenario] = useState<DemoScenario>(SCENARIO_B);
@@ -122,8 +124,13 @@ export function App() {
   };
 
   // Handle "Escalate to Human" action
-  const handleEscalateToHuman = () => {
-    if (!analysisState.handoffPacket) return;
+  const handleEscalateToHuman = async () => {
+    let packet = analysisState.handoffPacket;
+    if (!packet) {
+      const fallbackAnalysis = runDeterministicAnalysis(currentScenario.opportunity, currentScenario.transcript);
+      packet = fallbackAnalysis.handoffPacket;
+    }
+    if (!packet) return;
 
     const humanTimelineNode: HandoffTimelineNode = {
       agentName: 'Human Deal Desk Lead (VP RevOps)',
@@ -135,14 +142,26 @@ export function App() {
     };
 
     const updatedHandoffPacket: HandoffPacket = {
-      ...analysisState.handoffPacket,
+      ...packet,
       status: 'escalated_to_human',
       isFrozen: true,
       frozenReason: 'Manual Human Escalation triggered by user. Autonomous skill dispatches frozen pending Deal Desk sign-off.',
     };
 
+    const currentTimeline = analysisState.handoffTimeline.length > 0
+      ? analysisState.handoffTimeline
+      : [
+          {
+            agentName: 'DealPulse Primary Agent',
+            role: 'Deal-Risk Evaluation & MEDDPICC Extraction',
+            status: 'completed' as const,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            summary: `Extracted ${packet.riskScore}/100 risk score, flagged critical deal gaps.`,
+          },
+        ];
+
     const updatedTimeline = [
-      ...analysisState.handoffTimeline.map(t => t.status === 'active' ? { ...t, status: 'completed' as const } : t),
+      ...currentTimeline.map(t => t.status === 'active' ? { ...t, status: 'completed' as const } : t),
       humanTimelineNode,
     ];
 
@@ -154,10 +173,22 @@ export function App() {
 
     setAnalysisState(updatedState);
 
+    // Call MCP skill execute to ensure registry records it
+    const mcpRes = await executeMcpSkill('handoff.to_human', {
+      opportunity_id: currentScenario.opportunity.id,
+      risk_score: updatedHandoffPacket.riskScore,
+      packet_id: updatedHandoffPacket.packetId,
+      freeze_auto_actions: true,
+      reason: updatedHandoffPacket.reason,
+    }, {
+      opportunity: currentScenario.opportunity,
+      transcript: currentScenario.transcript,
+    });
+
     // Log to Action Ledger
     const escalationLedgerEntry: ActionLedgerEntry = {
       id: `LEDGER-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-      correlationId: updatedHandoffPacket.correlationId,
+      correlationId: updatedHandoffPacket.correlationId || `corr-esc-${Date.now().toString(36)}`,
       timestamp: new Date().toLocaleTimeString(),
       skillName: 'handoff.to_human',
       category: 'HANDOFF',
@@ -167,16 +198,16 @@ export function App() {
         risk_score: updatedHandoffPacket.riskScore,
         freeze_auto_actions: true,
       },
-      outputs: {
+      outputs: mcpRes.output || {
         escalation_status: 'TRANSFERRED_TO_HUMAN_EXECUTIVE',
         deal_desk_owner: updatedHandoffPacket.recommendedOwner,
         auto_actions_frozen: true,
         notification_channels: ['#deal-desk-war-room', 'Salesforce_P1_Lock', 'VP_RevOps_Pager'],
       },
       status: 'success',
-      executionTimeMs: 142,
+      executionTimeMs: mcpRes.executionTimeMs || 142,
       agentOwner: 'Deal Desk Supervisor Agent',
-      notes: `Escalated to human: ${updatedHandoffPacket.recommendedOwner}. Auto-actions frozen.`,
+      notes: `🛑 Deal escalated to human authority (${updatedHandoffPacket.recommendedOwner}). Autonomous actions FROZEN.`,
     };
     setLedgerEntries(prev => [escalationLedgerEntry, ...prev]);
 
@@ -188,7 +219,7 @@ export function App() {
         sender: 'agent',
         agentName: 'Human Deal Desk Router',
         avatar: 'HUM',
-        text: `🛑 **Deal Escalated to Human Authority — Auto-Actions Frozen**\n\n- **Assigned Owner**: **${updatedHandoffPacket.recommendedOwner}**\n- **Packet ID**: \`${updatedHandoffPacket.packetId}\` (Checksum: \`${updatedHandoffPacket.checksum.slice(0, 18)}...\`)\n- **Risk Score**: **${updatedHandoffPacket.riskScore} / 100**\n- **Status**: Automated execution is **LOCKED** pending human executive review.\n\n*Incident transfer record logged to Action Ledger and synchronized to Slack #deal-desk-war-room.*`,
+        text: `🛑 **Deal Escalated to Human Authority — Auto-Actions Frozen**\n\n- **Assigned Owner**: **${updatedHandoffPacket.recommendedOwner}**\n- **Packet ID**: \`${updatedHandoffPacket.packetId}\` (Checksum: \`${updatedHandoffPacket.checksum.slice(0, 18)}...\`)\n- **Risk Score**: **${updatedHandoffPacket.riskScore} / 100**\n- **Status**: Automated execution is **LOCKED** pending human executive review.\n\n*Incident transfer record logged to Action Ledger (#${escalationLedgerEntry.id}) and synchronized to Slack #deal-desk-war-room.*`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       }
     ]);
@@ -206,6 +237,10 @@ export function App() {
 
   // Handle Next-Best Action execution
   const handleExecuteAction = async (action: NextBestAction) => {
+    if (action.skillToTrigger === 'handoff.to_human') {
+      handleEscalateToHuman();
+      return;
+    }
     if (isRunning || !orchestratorRef.current) return;
     setIsRunning(true);
     const result = await orchestratorRef.current.executeAction(action, analysisState);
@@ -225,6 +260,10 @@ export function App() {
   }) => {
     if (cta.actionType === 'open_artifact' && cta.artifact) {
       setSelectedArtifact(cta.artifact);
+      return;
+    }
+    if (cta.skillName === 'handoff.to_human') {
+      handleEscalateToHuman();
       return;
     }
     if (cta.skillName && orchestratorRef.current) {
